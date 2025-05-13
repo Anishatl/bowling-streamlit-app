@@ -2,7 +2,7 @@ import streamlit as st
 import cv2
 import tempfile
 import numpy as np
-from pose_utils import analyze_pose
+from pose_utils import analyze_pose_video  # ✅ import the new function
 
 st.title("🏏 Bowling Action Analyzer")
 
@@ -18,20 +18,14 @@ if video_file:
     tfile = tempfile.NamedTemporaryFile(delete=False)
     tfile.write(video_file.read())
 
-    cap = cv2.VideoCapture(tfile.name)
+    st.video(tfile.name)  # ✅ Show the uploaded video
 
-    stframe = st.empty()
+    st.write("Analyzing video, please wait...")
 
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
+    # ✅ Analyze full video
+    feedback = analyze_pose_video(tfile.name)
 
-        # Process the frame using MediaPipe pose analysis
-        annotated_frame, feedback = analyze_pose(frame)
-
-        stframe.image(annotated_frame, channels="BGR")
-
-    cap.release()
+    # ✅ Display feedback
     st.success("✅ Analysis complete!")
-    st.markdown(f"### Feedback:\n{feedback}")
+    st.markdown("### Summary Feedback:")
+    st.text(feedback)
