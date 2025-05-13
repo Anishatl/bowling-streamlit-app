@@ -19,6 +19,11 @@ uploaded_file = st.file_uploader("Upload a video", type=["mp4", "mov", "avi"])
 # Temporary container for full video analysis
 full_video_analysis_container = st.empty()
 
+# Cache the analysis result to avoid recalculating every time
+@st.cache_resource
+def cached_video_analysis(file_path):
+    return analyze_pose_video(file_path)
+
 if uploaded_file is not None:
     # Saving the uploaded video to a temporary file
     tfile = tempfile.NamedTemporaryFile(delete=False)
@@ -44,16 +49,18 @@ if uploaded_file is not None:
     st.write(f"Total frames in the video: {frame_count}")
 
     # Option to analyze the full video (this section will remain at the top)
-    analyze_full_video = st.button("Analyze Full Video")
-
-    if analyze_full_video:
-        # Analyze the full video and display the feedback in the top container
-        feedback = analyze_pose_video(tfile.name)
+    if 'full_video_feedback' not in st.session_state:
+        # Run the analysis only once, then store it in session state
+        full_video_feedback = cached_video_analysis(tfile.name)
+        st.session_state.full_video_feedback = full_video_feedback
         full_video_analysis_container.write("### Full Video Analysis:")
-        full_video_analysis_container.write(feedback)
+        full_video_analysis_container.write(full_video_feedback)
+    else:
+        # If analysis was already done, simply display it
+        full_video_analysis_container.write("### Full Video Analysis:")
+        full_video_analysis_container.write(st.session_state.full_video_feedback)
 
     # Show frame slider every 5 frames
-    # Display frames at every 5th index
     frame_slider = st.slider("Select a frame", 0, frame_count - 1, 0, step=5)
 
     # Select the frame and analyze pose
