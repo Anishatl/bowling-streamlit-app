@@ -29,34 +29,35 @@ if uploaded_file is not None:
     tfile = tempfile.NamedTemporaryFile(delete=False)
     tfile.write(uploaded_file.read())
 
+    # Create a loading spinner
+    with st.spinner('Analyzing video, please wait...'):
+        # Load video with OpenCV to extract frames
+        cap = cv2.VideoCapture(tfile.name)
+        frames = []
+        frame_count = 0
 
-    # Load video with OpenCV to extract frames
-    cap = cv2.VideoCapture(tfile.name)
-    frames = []
-    frame_count = 0
+        # Read video frames
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+            frames.append(frame)
+            frame_count += 1
+        cap.release()
 
-    # Read video frames
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
-        frames.append(frame)
-        frame_count += 1
-    cap.release()
+        st.write(f"Total frames in the video: {frame_count}")
 
-    st.write(f"Total frames in the video: {frame_count}")
-
-    # Option to analyze the full video (this section will remain at the top)
-    if 'full_video_feedback' not in st.session_state:
-        # Run the analysis only once, then store it in session state
-        full_video_feedback = cached_video_analysis(tfile.name)
-        st.session_state.full_video_feedback = full_video_feedback
-        full_video_analysis_container.write("### Full Video Analysis:")
-        full_video_analysis_container.write(full_video_feedback)
-    else:
-        # If analysis was already done, simply display it
-        full_video_analysis_container.write("### Full Video Analysis:")
-        full_video_analysis_container.write(st.session_state.full_video_feedback)
+        # Option to analyze the full video (this section will remain at the top)
+        if 'full_video_feedback' not in st.session_state:
+            # Run the analysis only once, then store it in session state
+            full_video_feedback = cached_video_analysis(tfile.name)
+            st.session_state.full_video_feedback = full_video_feedback
+            full_video_analysis_container.write("### Full Video Analysis:")
+            full_video_analysis_container.write(full_video_feedback)
+        else:
+            # If analysis was already done, simply display it
+            full_video_analysis_container.write("### Full Video Analysis:")
+            full_video_analysis_container.write(st.session_state.full_video_feedback)
 
     # Show frame slider every 5 frames
     frame_slider = st.slider("Select a frame", 0, frame_count - 1, 0, step=5)
