@@ -6,91 +6,72 @@ from pose_utils import analyze_pose_video, analyze_pose
 from PIL import Image
 
 # Title and description
-# Session state for rotation and frame size
-if "rotation" not in st.session_state:
-    st.session_state.rotation = 0
-if "frame_width" not in st.session_state:
-    st.session_state.frame_width = 400  # default
-
 st.title("🏏 Bowling Action Analyzer")
-st.write("Upload a bowling video to analyze its pose frame-by-frame.")
-st.write("Upload a bowling video to analyze its pose every 5 frames.")
+st.write("Upload a video of your bowling action to get started.")
+
+# Session state setup
+if "angle_data" not in st.session_state:
+    st.session_state.angle_data = None
+
+if "frames" not in st.session_state:
+    st.session_state.frames = []
+
+if "rotated_frames" not in st.session_state:
+    st.session_state.rotated_frames = []
+
+if "rotation_angle" not in st.session_state:
+    st.session_state.rotation_angle = 0
 
 # Upload video
-uploaded_file = st.file_uploader("Choose a video file", type=["mp4", "mov", "avi"])
+video_file = st.file_uploader("Upload Bowling Video", type=["mp4", "mov", "avi"])
 
-if uploaded_file is not None:
-    # Open the video file using OpenCV
-    # Save to temp file
+# Frame size slider (percentage of original)
+frame_scale = st.slider("Adjust Frame Size (%)", min_value=10, max_value=150, value=100, step=10)
+
+# Rotate video
+if st.button("🔁 Rotate Frame 90°"):
+    st.session_state.rotation_angle = (st.session_state.rotation_angle + 90) % 360
+    rotated = []
+    for f in st.session_state.frames:
+        img = Image.fromarray(f)
+        rotated_img = img.rotate(-st.session_state.rotation_angle, expand=True)
+        rotated.append(np.array(rotated_img))
+    st.session_state.rotated_frames = rotated
+
+# Process video
+if video_file is not None:
     tfile = tempfile.NamedTemporaryFile(delete=False)
-    tfile.write(uploaded_file.read())
-    cap = cv2.VideoCapture(tfile.name)
+    tfile.write(video_file.read())
 
-    # Get the original dimensions of the video
-    original_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    original_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    cap.release()
+    if not st.session_state.angle_data:
+        # Analyze once per video upload
+        with st.spinner("Analyzing full video..."):
+            angle_data, every_nth_frame = analyze_pose_video(tfile.name)
+            st.session_state.angle_data = angle_data
+            st.session_state.frames = every_nth_frame
+            st.session_state.rotated_frames = every_nth_frame  # Initially not rotated
 
-    # Frame size adjustment slider
-    frame_width = st.slider("Select Frame Width", min_value=100, max_value=original_width, value=original_width, step=10)
-    # Load and analyze video only once
-    if "feedback" not in st.session_state or "frames" not in st.session_state:
-        st.session_state.feedback, st.session_state.frames = analyze_pose_video(tfile.name)
+        st.success("✅ Analysis complete!")
 
-    # Calculate the new height while keeping the aspect ratio
-    aspect_ratio = original_width / original_height
-    frame_height = int(frame_width / aspect_ratio)
-    feedback = st.session_state.feedback
-    all_frames = st.session_state.frames
+    # Show full video feedback
+    st.subheader("📊 Full Video Feedback")
+    for key, values in st.session_state.angle_data.items():
+        avg = np.mean(values)
+        st.write(f"Average {key.replace('_', ' ').title()}: {avg:.2f}°")
 
-    # Display full video analysis
-    feedback = analyze_pose_video(tfile.name)
-    st.text_area("Full Video Analysis", value=feedback, height=200)
+    # Frame navigation
+    st.subheader("🖼️ Frame-by-Frame Pose View")
+    total_frames = len(st.session_state.rotated_frames)
+    if total_frames > 0:
+        frame_idx = st.slider("Select Frame", 0, total_frames - 1, 0)
 
-    # Frame selection slider
-    num_frames = len(feedback.splitlines())  # Assuming feedback corresponds to frames
-    selected_frame_index = st.slider("Select a Frame", min_value=0, max_value=num_frames - 1, value=0)
+        frame = st.session_state.rotated_frames[frame_idx]
+        annotated_frame, _ = analyze_pose(frame, draw_angles=True)
 
-    # Load the selected frame and resize it based on the slider value
-    cap = cv2.VideoCapture(tfile.name)
-    for _ in range(selected_frame_index):
-        cap.read()  # Skip to the selected frame
-    ret, frame = cap.read()
-    cap.release()
+        # Resize frame based on slider
+        if frame_scale != 100:
+            width = int(annotated_frame.shape[1] * frame_scale / 100)
+            height = int(annotated_frame.shape[0] * frame_scale / 100)
+            annotated_frame = cv2.resize(annotated_frame, (width, height))
 
-    if ret:
-        # Resize the frame according to the selected width while maintaining the aspect ratio
-        resized_frame = cv2.resize(frame, (frame_width, frame_height))
-        st.image(resized_frame, channels="BGR", use_container_width=True)
-
-    # Rotation button
-    if st.button("🔄 Rotate Frame"):
-        st.session_state.rotation = (st.session_state.rotation + 90) % 360
-
-    # Frame size slider
-    st.session_state.frame_width = st.slider(
-        "Adjust Frame Width", min_value=100, max_value=800,
-        value=st.session_state.frame_width, step=10
-    )
-
-    # Frame selector
-    selected_frame_index = st.slider(
-        "Select Frame", 0, len(all_frames) - 1, 0, step=1
-    )
-
-    # Display selected frame with rotation and resizing
-    selected_frame = all_frames[selected_frame_index]
-    if st.session_state.rotation != 0:
-        # Rotate while keeping text upright
-        pil_img = Image.fromarray(cv2.cvtColor(selected_frame, cv2.COLOR_BGR2RGB))
-        pil_img = pil_img.rotate(-st.session_state.rotation, expand=True)
-    else:
-        pil_img = Image.fromarray(cv2.cvtColor(selected_frame, cv2.COLOR_BGR2RGB))
-
-    # Resize while maintaining aspect ratio
-    width = st.session_state.frame_width
-    ratio = width / pil_img.width
-    height = int(pil_img.height * ratio)
-    pil_img = pil_img.resize((width, height))
-
-    st.image(pil_img, use_container_width=False)
+        st.image(annotated_frame, channels="RGB", use_container_width=False)
