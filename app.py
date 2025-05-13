@@ -64,4 +64,5 @@ if video_file is not None:
 
         frame = st.session_state.rotated_frames[frame_idx]
         annotated_frame, _ = analyze_pose(frame, draw_angles=True)
-        st.image(annotated_frame, channels="RGB", use_container_width=False)
+
+        st.image(annotated_frame, channels="RGB", use_container_width=True)
