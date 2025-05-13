@@ -24,6 +24,10 @@ full_video_analysis_container = st.empty()
 def cached_video_analysis(file_path):
     return analyze_pose_video(file_path)
 
+# Session state to keep track of rotation
+if 'rotation_angle' not in st.session_state:
+    st.session_state.rotation_angle = 0  # Start with no rotation
+
 if uploaded_file is not None:
     # Saving the uploaded video to a temporary file
     tfile = tempfile.NamedTemporaryFile(delete=False)
@@ -67,6 +71,18 @@ if uploaded_file is not None:
 
     # Select the frame and analyze pose
     selected_frame = frames[frame_slider]
+
+    # Handle rotation button click
+    if st.button("Rotate Frame 90°"):
+        st.session_state.rotation_angle = (st.session_state.rotation_angle + 90) % 360
+
+    # Rotate the selected frame based on the current rotation angle
+    if st.session_state.rotation_angle == 90:
+        selected_frame = cv2.rotate(selected_frame, cv2.ROTATE_90_CLOCKWISE)
+    elif st.session_state.rotation_angle == 180:
+        selected_frame = cv2.rotate(selected_frame, cv2.ROTATE_180)
+    elif st.session_state.rotation_angle == 270:
+        selected_frame = cv2.rotate(selected_frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
     # Run pose analysis on the selected frame
     analyzed_frame, feedback = analyze_pose(selected_frame, draw_angles=True)
