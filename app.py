@@ -72,6 +72,9 @@ if uploaded_file is not None:
     # Select the frame and analyze pose
     selected_frame = frames[frame_slider]
 
+    # Add some space before the button for better layout
+    st.markdown("<br><br>", unsafe_allow_html=True)
+
     # Button to rotate the frame
     if st.button("Rotate Frame 90°"):
         st.session_state.rotation_angle = (st.session_state.rotation_angle + 90) % 360
