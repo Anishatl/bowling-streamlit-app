@@ -72,7 +72,7 @@ if uploaded_file is not None:
     # Select the frame and analyze pose
     selected_frame = frames[frame_slider]
 
-    # Handle rotation button click
+    # Option to rotate the frame by 90 degrees
     if st.button("Rotate Frame 90°"):
         st.session_state.rotation_angle = (st.session_state.rotation_angle + 90) % 360
 
@@ -87,7 +87,7 @@ if uploaded_file is not None:
     # Run pose analysis on the selected frame
     analyzed_frame, feedback = analyze_pose(selected_frame, draw_angles=True)
 
-    # Show the analyzed frame
+    # Show the analyzed frame with the option to rotate
     st.image(analyzed_frame, channels="RGB", use_container_width=True)
 
     # Show feedback for the selected frame
