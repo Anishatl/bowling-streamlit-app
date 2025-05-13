@@ -5,7 +5,6 @@ import numpy as np
 from pose_utils import analyze_pose_video, analyze_pose
 from PIL import Image
 
-st.legacy_caching.clear_cache()
 # Title and description
 st.title("🏏 Bowling Action Analyzer")
 st.write("Upload a video of your bowling action to get started.")
