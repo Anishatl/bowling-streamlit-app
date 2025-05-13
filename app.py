@@ -16,6 +16,9 @@ st.markdown(
 # File uploader
 uploaded_file = st.file_uploader("Upload a video", type=["mp4", "mov", "avi"])
 
+# Temporary container for full video analysis
+full_video_analysis_container = st.empty()
+
 if uploaded_file is not None:
     # Saving the uploaded video to a temporary file
     tfile = tempfile.NamedTemporaryFile(delete=False)
@@ -40,6 +43,15 @@ if uploaded_file is not None:
 
     st.write(f"Total frames in the video: {frame_count}")
 
+    # Option to analyze the full video (this section will remain at the top)
+    analyze_full_video = st.button("Analyze Full Video")
+
+    if analyze_full_video:
+        # Analyze the full video and display the feedback in the top container
+        feedback = analyze_pose_video(tfile.name)
+        full_video_analysis_container.write("### Full Video Analysis:")
+        full_video_analysis_container.write(feedback)
+
     # Show frame slider every 5 frames
     # Display frames at every 5th index
     frame_slider = st.slider("Select a frame", 0, frame_count - 1, 0, step=5)
@@ -53,13 +65,5 @@ if uploaded_file is not None:
     # Show the analyzed frame
     st.image(analyzed_frame, channels="RGB", use_container_width=True)
 
-    # Show feedback
+    # Show feedback for the selected frame
     st.write(feedback)
-
-    # Option to analyze the full video and get a summary
-    analyze_full_video = st.button("Analyze Full Video")
-
-    if analyze_full_video:
-        feedback = analyze_pose_video(tfile.name)
-        st.write("### Full Video Analysis:")
-        st.write(feedback)
