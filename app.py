@@ -41,7 +41,8 @@ if uploaded_file is not None:
     st.write(f"Total frames in the video: {frame_count}")
 
     # Show frame slider every 5 frames
-    frame_slider = st.slider("Select a frame", 0, frame_count - 1, 0)
+    # Display frames at every 5th index
+    frame_slider = st.slider("Select a frame", 0, frame_count - 1, 0, step=5)
 
     # Select the frame and analyze pose
     selected_frame = frames[frame_slider]
