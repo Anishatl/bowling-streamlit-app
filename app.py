@@ -3,94 +3,49 @@ import cv2
 import tempfile
 import numpy as np
 from pose_utils import analyze_pose_video, analyze_pose
+from PIL import Image
 
 # Title and description
 st.title("🏏 Bowling Action Analyzer")
-st.markdown(
-    """
-    Upload a video file to analyze the bowler's action frame by frame.
-    This app will detect and analyze key pose angles to give feedback on the bowler's form.
-    """
-)
+st.write("Upload a bowling video to analyze its pose frame-by-frame.")
 
-# File uploader
-uploaded_file = st.file_uploader("Upload a video", type=["mp4", "mov", "avi"])
-
-# Temporary container for full video analysis
-full_video_analysis_container = st.empty()
-
-# Cache the analysis result to avoid recalculating every time
-@st.cache_resource
-def cached_video_analysis(file_path):
-    return analyze_pose_video(file_path)
-
-# Session state to keep track of rotation
-if 'rotation_angle' not in st.session_state:
-    st.session_state.rotation_angle = 0  # Start with no rotation
-
+# Upload video
+uploaded_file = st.file_uploader("Choose a video file", type=["mp4", "mov", "avi"])
 if uploaded_file is not None:
-    # Saving the uploaded video to a temporary file
+    # Open the video file using OpenCV
     tfile = tempfile.NamedTemporaryFile(delete=False)
     tfile.write(uploaded_file.read())
+    cap = cv2.VideoCapture(tfile.name)
 
-    # Create a loading spinner
-    with st.spinner('Analyzing video, please wait...'):
-        # Load video with OpenCV to extract frames
-        cap = cv2.VideoCapture(tfile.name)
-        frames = []
-        frame_count = 0
+    # Get the original dimensions of the video
+    original_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    original_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    cap.release()
 
-        # Read video frames, but only store every 5th frame
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
-            # Only store every 5th frame
-            if frame_count % 5 == 0:
-                frames.append(frame)
-            frame_count += 1
-        cap.release()
+    # Frame size adjustment slider
+    frame_width = st.slider("Select Frame Width", min_value=100, max_value=original_width, value=original_width, step=10)
 
-        st.write(f"Total frames in the video: {frame_count}")
-        st.write(f"Frames being analyzed (every 5th frame): {len(frames)}")
+    # Calculate the new height while keeping the aspect ratio
+    aspect_ratio = original_width / original_height
+    frame_height = int(frame_width / aspect_ratio)
 
-        # Option to analyze the full video (this section will remain at the top)
-        if 'full_video_feedback' not in st.session_state:
-            # Run the analysis only once, then store it in session state
-            full_video_feedback = cached_video_analysis(tfile.name)
-            st.session_state.full_video_feedback = full_video_feedback
-            full_video_analysis_container.write("### Full Video Analysis:")
-            full_video_analysis_container.write(full_video_feedback)
-        else:
-            # If analysis was already done, simply display it
-            full_video_analysis_container.write("### Full Video Analysis:")
-            full_video_analysis_container.write(st.session_state.full_video_feedback)
+    # Display full video analysis
+    feedback = analyze_pose_video(tfile.name)
+    st.text_area("Full Video Analysis", value=feedback, height=200)
 
-    # Show frame slider with the reduced number of frames (every 5th frame)
-    frame_slider = st.slider("Select a frame", 0, len(frames) - 1, 0)
+    # Frame selection slider
+    num_frames = len(feedback.splitlines())  # Assuming feedback corresponds to frames
+    selected_frame_index = st.slider("Select a Frame", min_value=0, max_value=num_frames - 1, value=0)
 
-    # Select the frame and analyze pose
-    selected_frame = frames[frame_slider]
+    # Load the selected frame and resize it based on the slider value
+    cap = cv2.VideoCapture(tfile.name)
+    for _ in range(selected_frame_index):
+        cap.read()  # Skip to the selected frame
+    ret, frame = cap.read()
+    cap.release()
 
-    # Add some space before the button for better layout
+    if ret:
+        # Resize the frame according to the selected width while maintaining the aspect ratio
+        resized_frame = cv2.resize(frame, (frame_width, frame_height))
+        st.image(resized_frame, channels="BGR", use_container_width=True)
 
-    # Button to rotate the frame
-    if st.button("Rotate Frame 90°"):
-        st.session_state.rotation_angle = (st.session_state.rotation_angle + 90) % 360
-
-    # Rotate the selected frame based on the current rotation angle
-    if st.session_state.rotation_angle == 90:
-        selected_frame = cv2.rotate(selected_frame, cv2.ROTATE_90_CLOCKWISE)
-    elif st.session_state.rotation_angle == 180:
-        selected_frame = cv2.rotate(selected_frame, cv2.ROTATE_180)
-    elif st.session_state.rotation_angle == 270:
-        selected_frame = cv2.rotate(selected_frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
-
-    # Run pose analysis on the selected frame
-    analyzed_frame, feedback = analyze_pose(selected_frame, draw_angles=True)
-
-    # Show the analyzed frame with the option to rotate
-    st.image(analyzed_frame, channels="RGB", use_container_width=True)
-
-    # Show feedback for the selected frame
-    st.write(feedback)
