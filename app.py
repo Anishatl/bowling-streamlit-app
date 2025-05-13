@@ -36,16 +36,19 @@ if uploaded_file is not None:
         frames = []
         frame_count = 0
 
-        # Read video frames
+        # Read video frames, but only store every 5th frame
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
                 break
-            frames.append(frame)
+            # Only store every 5th frame
+            if frame_count % 5 == 0:
+                frames.append(frame)
             frame_count += 1
         cap.release()
 
         st.write(f"Total frames in the video: {frame_count}")
+        st.write(f"Frames being analyzed (every 5th frame): {len(frames)}")
 
         # Option to analyze the full video (this section will remain at the top)
         if 'full_video_feedback' not in st.session_state:
@@ -59,8 +62,8 @@ if uploaded_file is not None:
             full_video_analysis_container.write("### Full Video Analysis:")
             full_video_analysis_container.write(st.session_state.full_video_feedback)
 
-    # Show frame slider every 5 frames
-    frame_slider = st.slider("Select a frame", 0, frame_count - 1, 0, step=5)
+    # Show frame slider with the reduced number of frames (every 5th frame)
+    frame_slider = st.slider("Select a frame", 0, len(frames) - 1, 0)
 
     # Select the frame and analyze pose
     selected_frame = frames[frame_slider]
