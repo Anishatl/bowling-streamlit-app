@@ -1,79 +1,55 @@
-import cv2
 import streamlit as st
-from pose_utils import analyze_pose
-from tqdm import tqdm
+import cv2
+import tempfile
+import numpy as np
+from pose_utils import analyze_pose_video, analyze_pose
 
-# === Existing Code for Streamlit UI ===
+# Title and description
+st.title("🏏 Bowling Action Analyzer")
+st.write("Upload a video of a cricket bowling action, and the system will analyze the pose frame by frame.")
 
-# Streamlit: Title and input video file
-st.title("Cricket Bowling Pose Analysis")
+# File uploader for video input
+uploaded_file = st.file_uploader("Choose a video", type=["mp4", "avi", "mov"])
 
-uploaded_video = st.file_uploader("Upload a video file", type=["mp4", "avi", "mov"])
+# Display video feedback
+if uploaded_file is not None:
+    # Write the video to a temporary file
+    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+        tmp_file.write(uploaded_file.read())
+        video_path = tmp_file.name
 
-# Additional Streamlit code for other features (e.g., pose analysis, injury feedback, etc.)
-# Example: Add other Streamlit features here
+    # ✅ Analyze the full video for pose and angles
+    st.write("Analyzing video, please wait...")
+    feedback = analyze_pose_video(video_path)
 
-# === New Code for Video Annotation ===
+    # ✅ Display feedback for the full video
+    st.success("✅ Analysis complete!")
+    st.text(feedback)
 
-def process_and_annotate_video(input_path, output_path, show_live=False):
-    cap = cv2.VideoCapture(input_path)
+    # Optionally show the video with pose annotations frame by frame
+    show_video = st.checkbox("Show video with frame-by-frame pose analysis")
 
-    # Get original video properties
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
-    width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    if show_video:
+        # Open video using OpenCV
+        cap = cv2.VideoCapture(video_path)
+        frame_list = []
 
-    # Output video writer
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # or 'XVID'
-    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-
-    # Process each frame
-    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    with tqdm(total=frame_count, desc="Processing Frames") as pbar:
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
                 break
 
-            # Analyze pose and draw angles
-            processed_frame, _ = analyze_pose(frame, draw_angles=True)
+            # Analyze pose for the current frame
+            annotated_frame, _ = analyze_pose(frame, draw_angles=True)
 
-            # Write frame to output video
-            out.write(processed_frame)
+            # Convert the frame to RGB for displaying in Streamlit
+            frame_rgb = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
+            frame_list.append(frame_rgb)
 
-            # Optionally display video live
-            if show_live:
-                cv2.imshow('Pose Annotation', processed_frame)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
+        cap.release()
 
-            pbar.update(1)
-
-    cap.release()
-    out.release()
-    if show_live:
-        cv2.destroyAllWindows()
-
-    print("✅ Done: Annotated video saved to", output_path)
-
-# === Streamlit: Handling the video upload and processing ===
-if uploaded_video is not None:
-    # Save the uploaded video to a file
-    input_video_path = f"temp_video/{uploaded_video.name}"
-    with open(input_video_path, "wb") as f:
-        f.write(uploaded_video.getbuffer())
-
-    # Option to show live preview during processing
-    show_live = st.checkbox("Show live preview during processing", value=False)
-
-    # Output path for annotated video
-    output_video_path = f"temp_video/annotated_{uploaded_video.name}"
-
-    # Run the video annotation process when the user presses the button
-    if st.button("Process Video"):
-        st.text("Processing your video... please wait.")
-        process_and_annotate_video(input_video_path, output_video_path, show_live)
-
-        # After processing, provide the download link
-        st.text("Processing complete!")
-        st.video(output_video_path)  # Streamlit video display
+        # Display video frames
+        for frame in frame_list:
+            st.image(frame, channels="RGB", use_column_width=True)
+else:
+    st.write("Please upload a video to analyze.")
