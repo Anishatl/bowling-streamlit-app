@@ -90,55 +90,61 @@ def analyze_pose(frame, draw_angles=False):
 
 # === Video Pose Analysis (entire video) ===
 def analyze_pose_video(video_path):
-    """Analyze the pose throughout a video and generate feedback."""
     cap = cv2.VideoCapture(video_path)
 
     elbow_angles = []
     spine_angles = []
     knee_angles = []
     shoulder_angles = []
+    
+    frame_counter = 0  # Frame counter to track the frame number
 
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
 
-        image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = pose.process(image_rgb)
+        frame_counter += 1
 
-        if results.pose_landmarks:
-            lm = results.pose_landmarks.landmark
+        # Only analyze every 5th frame
+        if frame_counter % 5 == 0:
+            # Convert to RGB and process
+            image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            results = pose.process(image_rgb)
 
-            def get_point(landmark):
-                return (landmark.x, landmark.y)
+            if results.pose_landmarks:
+                lm = results.pose_landmarks.landmark
 
-            # === Joint Points ===
-            r_shoulder = get_point(lm[mp_pose.PoseLandmark.RIGHT_SHOULDER])
-            r_elbow = get_point(lm[mp_pose.PoseLandmark.RIGHT_ELBOW])
-            r_wrist = get_point(lm[mp_pose.PoseLandmark.RIGHT_WRIST])
+                def get_point(landmark):
+                    return (landmark.x, landmark.y)
 
-            r_hip = get_point(lm[mp_pose.PoseLandmark.RIGHT_HIP])
-            r_knee = get_point(lm[mp_pose.PoseLandmark.RIGHT_KNEE])
-            r_ankle = get_point(lm[mp_pose.PoseLandmark.RIGHT_ANKLE])
+                # Extract points for the necessary landmarks
+                r_shoulder = get_point(lm[mp_pose.PoseLandmark.RIGHT_SHOULDER])
+                r_elbow = get_point(lm[mp_pose.PoseLandmark.RIGHT_ELBOW])
+                r_wrist = get_point(lm[mp_pose.PoseLandmark.RIGHT_WRIST])
 
-            l_shoulder = get_point(lm[mp_pose.PoseLandmark.LEFT_SHOULDER])
-            l_hip = get_point(lm[mp_pose.PoseLandmark.LEFT_HIP])
+                r_hip = get_point(lm[mp_pose.PoseLandmark.RIGHT_HIP])
+                r_knee = get_point(lm[mp_pose.PoseLandmark.RIGHT_KNEE])
+                r_ankle = get_point(lm[mp_pose.PoseLandmark.RIGHT_ANKLE])
 
-            # === Compute angles ===
-            elbow_angle = calculate_angle(r_shoulder, r_elbow, r_wrist)
-            spine_angle = calculate_angle(l_hip, r_hip, r_shoulder)
-            knee_angle = calculate_angle(r_hip, r_knee, r_ankle)
-            shoulder_angle = calculate_angle(r_elbow, r_shoulder, r_hip)
+                l_hip = get_point(lm[mp_pose.PoseLandmark.LEFT_HIP])
+                l_shoulder = get_point(lm[mp_pose.PoseLandmark.LEFT_SHOULDER])
 
-            # === Store angles ===
-            elbow_angles.append(elbow_angle)
-            spine_angles.append(spine_angle)
-            knee_angles.append(knee_angle)
-            shoulder_angles.append(shoulder_angle)
+                # Compute angles
+                elbow_angle = calculate_angle(r_shoulder, r_elbow, r_wrist)
+                spine_angle = calculate_angle(l_hip, r_hip, r_shoulder)
+                knee_angle = calculate_angle(r_hip, r_knee, r_ankle)
+                shoulder_angle = calculate_angle(r_elbow, r_shoulder, r_hip)
+
+                # Store angles
+                elbow_angles.append(elbow_angle)
+                spine_angles.append(spine_angle)
+                knee_angles.append(knee_angle)
+                shoulder_angles.append(shoulder_angle)
 
     cap.release()
 
-    # === Compute and summarize angles ===
+    # Summarize feedback based on angles
     def summarize(name, angles, safe_range, risky_threshold, inverse=False):
         avg = sum(angles) / len(angles)
         worst = min(angles) if not inverse else max(angles)
@@ -149,6 +155,7 @@ def analyze_pose_video(video_path):
 
         return f"{name}:\n - Avg: {int(avg)}°\n - Peak: {int(worst)}°\n - {status}\n"
 
+    # Customize thresholds and ranges here
     feedback = ""
     feedback += summarize("Elbow angle", elbow_angles, (165, 180), 150)
     feedback += summarize("Spine lean", spine_angles, (0, 30), 40, inverse=True)
