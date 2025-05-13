@@ -29,8 +29,6 @@ if uploaded_file is not None:
     tfile = tempfile.NamedTemporaryFile(delete=False)
     tfile.write(uploaded_file.read())
 
-    # Display feedback message
-    st.write("Analyzing video, please wait...")
 
     # Load video with OpenCV to extract frames
     cap = cv2.VideoCapture(tfile.name)
