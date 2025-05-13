@@ -50,6 +50,6 @@ if uploaded_file is not None:
 
         # Display video frames
         for frame in frame_list:
-            st.image(frame, channels="RGB", use_column_width=True)
+            st.image(frame, channels="RGB", use_container_width=True)
 else:
     st.write("Please upload a video to analyze.")
