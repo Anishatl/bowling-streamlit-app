@@ -6,50 +6,59 @@ from pose_utils import analyze_pose_video, analyze_pose
 
 # Title and description
 st.title("🏏 Bowling Action Analyzer")
-st.write("Upload a video of a cricket bowling action, and the system will analyze the pose frame by frame.")
+st.markdown(
+    """
+    Upload a video file to analyze the bowler's action frame by frame.
+    This app will detect and analyze key pose angles to give feedback on the bowler's form.
+    """
+)
 
-# File uploader for video input
-uploaded_file = st.file_uploader("Choose a video", type=["mp4", "avi", "mov"])
+# File uploader
+uploaded_file = st.file_uploader("Upload a video", type=["mp4", "mov", "avi"])
 
-# Display video feedback
 if uploaded_file is not None:
-    # Write the video to a temporary file
-    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-        tmp_file.write(uploaded_file.read())
-        video_path = tmp_file.name
+    # Saving the uploaded video to a temporary file
+    tfile = tempfile.NamedTemporaryFile(delete=False)
+    tfile.write(uploaded_file.read())
 
-    # ✅ Analyze the full video for pose and angles
+    # Display feedback message
     st.write("Analyzing video, please wait...")
-    feedback = analyze_pose_video(video_path)
 
-    # ✅ Display feedback for the full video
-    st.success("✅ Analysis complete!")
-    st.text(feedback)
+    # Load video with OpenCV to extract frames
+    cap = cv2.VideoCapture(tfile.name)
+    frames = []
+    frame_count = 0
 
-    # Optionally show the video with pose annotations frame by frame
-    show_video = st.checkbox("Show video with frame-by-frame pose analysis")
+    # Read video frames
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+        frames.append(frame)
+        frame_count += 1
+    cap.release()
 
-    if show_video:
-        # Open video using OpenCV
-        cap = cv2.VideoCapture(video_path)
-        frame_list = []
+    st.write(f"Total frames in the video: {frame_count}")
 
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
+    # Show frame slider every 5 frames
+    frame_slider = st.slider("Select a frame", 0, frame_count - 1, 0)
 
-            # Analyze pose for the current frame
-            annotated_frame, _ = analyze_pose(frame, draw_angles=True)
+    # Select the frame and analyze pose
+    selected_frame = frames[frame_slider]
 
-            # Convert the frame to RGB for displaying in Streamlit
-            frame_rgb = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
-            frame_list.append(frame_rgb)
+    # Run pose analysis on the selected frame
+    analyzed_frame, feedback = analyze_pose(selected_frame, draw_angles=True)
 
-        cap.release()
+    # Show the analyzed frame
+    st.image(analyzed_frame, channels="RGB", use_container_width=True)
 
-        # Display video frames
-        for frame in frame_list:
-            st.image(frame, channels="RGB", use_container_width=True)
-else:
-    st.write("Please upload a video to analyze.")
+    # Show feedback
+    st.write(feedback)
+
+    # Option to analyze the full video and get a summary
+    analyze_full_video = st.button("Analyze Full Video")
+
+    if analyze_full_video:
+        feedback = analyze_pose_video(tfile.name)
+        st.write("### Full Video Analysis:")
+        st.write(feedback)
