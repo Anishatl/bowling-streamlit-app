@@ -3,72 +3,93 @@ import cv2
 import tempfile
 import numpy as np
 from pose_utils import analyze_pose_video, analyze_pose
-from PIL import Image
 
-# App title
+# Title and description
 st.title("🏏 Bowling Action Analyzer")
-st.write("Upload a video of your bowling action to get started.")
+st.markdown(
+    """
+    Upload a video file to analyze the bowler's action frame by frame.
+    This app will detect and analyze key pose angles to give feedback on the bowler's form.
+    """
+)
 
-# Session state
-if "angle_data" not in st.session_state:
-    st.session_state.angle_data = None
-if "frames" not in st.session_state:
-    st.session_state.frames = []
-if "rotated_frames" not in st.session_state:
-    st.session_state.rotated_frames = []
-if "rotation_angle" not in st.session_state:
-    st.session_state.rotation_angle = 0
+# File uploader
+uploaded_file = st.file_uploader("Upload a video", type=["mp4", "mov", "avi"])
 
-# Upload
-video_file = st.file_uploader("Upload Bowling Video", type=["mp4", "mov", "avi"])
+# Temporary container for full video analysis
+full_video_analysis_container = st.empty()
 
-# Frame size slider (beneath frame image)
-frame_scale = st.slider("Adjust Frame Size (%)", min_value=10, max_value=150, value=100, step=10)
+# Cache the analysis result to avoid recalculating every time
+@st.cache_resource
+def cached_video_analysis(file_path):
+    return analyze_pose_video(file_path)
 
-# Rotate frame button
-if st.button("🔁 Rotate Frame 90°"):
-    st.session_state.rotation_angle = (st.session_state.rotation_angle + 90) % 360
-    rotated = []
-    for f in st.session_state.frames:
-        img = Image.fromarray(f)
-        rotated_img = img.rotate(-st.session_state.rotation_angle, expand=True)
-        rotated.append(np.array(rotated_img))
-    st.session_state.rotated_frames = rotated
+# Session state to keep track of rotation
+if 'rotation_angle' not in st.session_state:
+    st.session_state.rotation_angle = 0  # Start with no rotation
 
-# If video is uploaded
-if video_file is not None:
+if uploaded_file is not None:
+    # Saving the uploaded video to a temporary file
     tfile = tempfile.NamedTemporaryFile(delete=False)
-    tfile.write(video_file.read())
+    tfile.write(uploaded_file.read())
 
-    if not st.session_state.angle_data:
-        with st.spinner("Analyzing full video..."):
-            # Note: analyze_pose_video should be analyzing every 5th frame
-            angle_data, every_nth_frame = analyze_pose_video(tfile.name)
-            st.session_state.angle_data = angle_data
-            st.session_state.frames = every_nth_frame
-            st.session_state.rotated_frames = every_nth_frame
+    # Create a loading spinner
+    with st.spinner('Analyzing video, please wait...'):
+        # Load video with OpenCV to extract frames
+        cap = cv2.VideoCapture(tfile.name)
+        frames = []
+        frame_count = 0
 
-        st.success("✅ Analysis complete!")
+        # Read video frames, but only store every 5th frame
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+            # Only store every 5th frame
+            if frame_count % 5 == 0:
+                frames.append(frame)
+            frame_count += 1
+        cap.release()
 
-    # Always show full analysis
-    st.subheader("📊 Full Video Feedback")
-    for key, values in st.session_state.angle_data.items():
-        avg = np.mean(values)
-        st.write(f"Average {key.replace('_', ' ').title()}: {avg:.2f}°")
+        st.write(f"Total frames in the video: {frame_count}")
+        st.write(f"Frames being analyzed (every 5th frame): {len(frames)}")
 
-    # Frame-by-frame view
-    st.subheader("🖼️ Frame-by-Frame Pose View")
-    total_frames = len(st.session_state.rotated_frames)
-    if total_frames > 0:
-        frame_idx = st.slider("Select Frame", 0, total_frames - 1, 0)
+        # Option to analyze the full video (this section will remain at the top)
+        if 'full_video_feedback' not in st.session_state:
+            # Run the analysis only once, then store it in session state
+            full_video_feedback = cached_video_analysis(tfile.name)
+            st.session_state.full_video_feedback = full_video_feedback
+            full_video_analysis_container.write("### Full Video Analysis:")
+            full_video_analysis_container.write(full_video_feedback)
+        else:
+            # If analysis was already done, simply display it
+            full_video_analysis_container.write("### Full Video Analysis:")
+            full_video_analysis_container.write(st.session_state.full_video_feedback)
 
-        frame = st.session_state.rotated_frames[frame_idx]
-        annotated_frame, _ = analyze_pose(frame, draw_angles=True)
+    # Show frame slider with the reduced number of frames (every 5th frame)
+    frame_slider = st.slider("Select a frame", 0, len(frames) - 1, 0)
 
-        # Resize based on frame_scale
-        if frame_scale != 100:
-            width = int(annotated_frame.shape[1] * frame_scale / 100)
-            height = int(annotated_frame.shape[0] * frame_scale / 100)
-            annotated_frame = cv2.resize(annotated_frame, (width, height))
+    # Select the frame and analyze pose
+    selected_frame = frames[frame_slider]
 
-        st.image(annotated_frame, channels="RGB", use_container_width=False)
+
+    # Button to rotate the frame
+    if st.button("Rotate Frame 90°"):
+        st.session_state.rotation_angle = (st.session_state.rotation_angle + 90) % 360
+
+    # Rotate the selected frame based on the current rotation angle
+    if st.session_state.rotation_angle == 90:
+        selected_frame = cv2.rotate(selected_frame, cv2.ROTATE_90_CLOCKWISE)
+    elif st.session_state.rotation_angle == 180:
+        selected_frame = cv2.rotate(selected_frame, cv2.ROTATE_180)
+    elif st.session_state.rotation_angle == 270:
+        selected_frame = cv2.rotate(selected_frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+    # Run pose analysis on the selected frame
+    analyzed_frame, feedback = analyze_pose(selected_frame, draw_angles=True)
+
+    # Show the analyzed frame with the option to rotate
+    st.image(analyzed_frame, channels="RGB", use_container_width=True)
+
+    # Show feedback for the selected frame
+    st.write(feedback)
