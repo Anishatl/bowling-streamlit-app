@@ -23,6 +23,44 @@ pose = mp_pose.Pose()
 mp_drawing = mp.solutions.drawing_utils
 
 # === Frame-by-Frame Pose Analysis ===
+def analyze_pose(frame, draw_angles=False):
+    image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    results = pose.process(image_rgb)
+
+    feedback = ""
+    debug_text = ""
+
+    if results.pose_landmarks:
+        lm = results.pose_landmarks.landmark
+
+        # Extract normalized coords for a few key points
+        r_shoulder = (lm[mp_pose.PoseLandmark.RIGHT_SHOULDER].x, lm[mp_pose.PoseLandmark.RIGHT_SHOULDER].y)
+        r_elbow = (lm[mp_pose.PoseLandmark.RIGHT_ELBOW].x, lm[mp_pose.PoseLandmark.RIGHT_ELBOW].y)
+        r_wrist = (lm[mp_pose.PoseLandmark.RIGHT_WRIST].x, lm[mp_pose.PoseLandmark.RIGHT_WRIST].y)
+
+        # Add them to debug text
+        debug_text += f"Right Shoulder (norm): {r_shoulder}\n"
+        debug_text += f"Right Elbow (norm): {r_elbow}\n"
+        debug_text += f"Right Wrist (norm): {r_wrist}\n"
+
+        # Calculate elbow angle
+        elbow_angle = calculate_angle(r_shoulder, r_elbow, r_wrist)
+        debug_text += f"Elbow Angle: {elbow_angle:.2f}°\n"
+
+        # Optional: draw landmarks on frame for visualization
+        h, w, _ = frame.shape
+        r_shoulder_px = (int(r_shoulder[0]*w), int(r_shoulder[1]*h))
+        r_elbow_px = (int(r_elbow[0]*w), int(r_elbow[1]*h))
+        r_wrist_px = (int(r_wrist[0]*w), int(r_wrist[1]*h))
+
+        cv2.circle(frame, r_shoulder_px, 5, (0,255,0), -1)
+        cv2.circle(frame, r_elbow_px, 5, (0,255,0), -1)
+        cv2.circle(frame, r_wrist_px, 5, (0,255,0), -1)
+
+    else:
+        debug_text = "No pose landmarks detected."
+
+    return frame, feedback, debug_text
 
 
 # === Video Pose Analysis (entire video) ===
