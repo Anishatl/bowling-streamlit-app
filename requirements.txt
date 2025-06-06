@@ -3,3 +3,7 @@ opencv-python-headless
 mediapipe
 numpy
 tqdm
+pandas
+scikit-learn
+matplotlib
+tensorflow
