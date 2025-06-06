@@ -8,3 +8,4 @@ scikit-learn
 matplotlib
 tensorflow
 seaborn
+xgboost
