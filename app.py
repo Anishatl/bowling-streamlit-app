@@ -86,7 +86,8 @@ if uploaded_file is not None:
         selected_frame = cv2.rotate(selected_frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
     # Run pose analysis on the selected frame
-    analyzed_frame, feedback = analyze_pose(selected_frame, draw_angles=True)
+    analyzed_frame, feedback, debug_text = analyze_pose(selected_frame, draw_angles=True)
+
 
     # Show the analyzed frame with the option to rotate
     st.image(analyzed_frame, channels="RGB", use_container_width=True)
