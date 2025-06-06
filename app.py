@@ -87,10 +87,11 @@ if uploaded_file is not None:
 
     # Run pose analysis on the selected frame
     analyzed_frame, feedback, debug_text = analyze_pose(selected_frame, draw_angles=True)
-
+    
     st.image(analyzed_frame, channels="BGR", use_container_width=True)
-    st.text_area("Debug Info", debug_text, height=150)
+    st.text_area("Pose Angles Debug Info", debug_text, height=100)
     st.write("Feedback:", feedback)
+
 
 
 
