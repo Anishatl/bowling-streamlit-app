@@ -59,11 +59,7 @@ def analyze_pose(frame, draw_angles=False):
 
     else:
         debug_text = "No pose landmarks detected."
-    debug_info = ""
-    if results.pose_landmarks:
-        debug_info += f"Elbow angle: {int(elbow_angle)}°, Spine angle: {int(spine_angle)}°, Knee angle: {int(knee_angle)}°, Shoulder angle: {int(shoulder_angle)}°"
-
-    return frame, feedback, debug_info
+    return frame, feedback, debug_text
     
 
 
