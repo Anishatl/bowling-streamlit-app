@@ -23,70 +23,7 @@ pose = mp_pose.Pose()
 mp_drawing = mp.solutions.drawing_utils
 
 # === Frame-by-Frame Pose Analysis ===
-def analyze_pose(frame, draw_angles=False):
-    """Analyze the pose on a single frame."""
-    image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    results = pose.process(image_rgb)
 
-    feedback = ""
-
-    if results.pose_landmarks:
-        # Draw pose landmarks
-        mp_drawing.draw_landmarks(
-            frame,
-            results.pose_landmarks,
-            mp_pose.POSE_CONNECTIONS
-        )
-
-        lm = results.pose_landmarks.landmark
-
-        # Convert landmarks to pixel coordinates
-        def get_point(landmark):
-            return (landmark.x, landmark.y)
-
-        # === Joint Points ===
-        r_shoulder = get_point(lm[mp_pose.PoseLandmark.RIGHT_SHOULDER])
-        r_elbow = get_point(lm[mp_pose.PoseLandmark.RIGHT_ELBOW])
-        r_wrist = get_point(lm[mp_pose.PoseLandmark.RIGHT_WRIST])
-
-        r_hip = get_point(lm[mp_pose.PoseLandmark.RIGHT_HIP])
-        r_knee = get_point(lm[mp_pose.PoseLandmark.RIGHT_KNEE])
-        r_ankle = get_point(lm[mp_pose.PoseLandmark.RIGHT_ANKLE])
-
-        l_shoulder = get_point(lm[mp_pose.PoseLandmark.LEFT_SHOULDER])
-        l_hip = get_point(lm[mp_pose.PoseLandmark.LEFT_HIP])
-
-        # === Elbow Angle ===
-        elbow_angle = calculate_angle(r_shoulder, r_elbow, r_wrist)
-        if elbow_angle < 150:
-            feedback += f"⚠️ Elbow angle is too low ({int(elbow_angle)}°) — may indicate illegal action or strain.\n"
-
-        # === Spine Side Bend ===
-        spine_angle = calculate_angle(l_hip, r_hip, r_shoulder)
-        if spine_angle > 40:
-            feedback += f"⚠️ Excessive spine lean detected ({int(spine_angle)}°). Can cause back strain.\n"
-
-        # === Front Knee Bend ===
-        knee_angle = calculate_angle(r_hip, r_knee, r_ankle)
-        if knee_angle < 145:
-            feedback += f"⚠️ Front knee bend is too deep ({int(knee_angle)}°). Risk of knee injury.\n"
-
-        # === Shoulder Abduction ===
-        shoulder_angle = calculate_angle(r_elbow, r_shoulder, r_hip)
-        if shoulder_angle > 120:
-            feedback += f"⚠️ Shoulder raised too far ({int(shoulder_angle)}°). Risk of shoulder impingement.\n"
-
-        if feedback == "":
-            feedback = "✅ No major pose issues detected."
-
-        # === Draw angles if requested ===
-        if draw_angles:
-            cv2.putText(frame, f"Elbow Angle: {int(elbow_angle)}°", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-            cv2.putText(frame, f"Spine Angle: {int(spine_angle)}°", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-            cv2.putText(frame, f"Knee Angle: {int(knee_angle)}°", (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-            cv2.putText(frame, f"Shoulder Angle: {int(shoulder_angle)}°", (50, 200), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-
-    return frame, feedback
 
 # === Video Pose Analysis (entire video) ===
 def analyze_pose_video(video_path):
