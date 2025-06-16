@@ -3,9 +3,12 @@ opencv-python-headless
 mediapipe
 numpy
 tqdm
+numpy
 pandas
 scikit-learn
 matplotlib
-tensorflow
 seaborn
-xgboost
+joblib
+jupyterlab
+ipython
+
