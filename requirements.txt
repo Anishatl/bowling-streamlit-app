@@ -11,4 +11,5 @@ seaborn
 joblib
 jupyterlab
 ipython
+gdown
 
