@@ -6,6 +6,14 @@ import pandas as pd
 import joblib
 from pose_utils import analyze_pose_video, analyze_pose
 
+from model_loader import download_and_cache_model
+CLIP_MODEL_URL = "https://drive.google.com/uc?export=download&id=1j0Gk9rsp4p1F0V7JPQdaxBD7DqGnd5hZ"
+JOINT_MODEL_URL = "https://drive.google.com/uc?export=download&id=1cSvUNOhczi8JxbP2MAmRmCoZg6Ook0Pj"
+
+clip_model = download_and_cache_model(CLIP_MODEL_URL, "clip_level_rf_model.pkl")
+joint_models = download_and_cache_model(JOINT_MODEL_URL, "joint_risk_rf_models.pkl")
+
+
 # ----------------------------
 # Load trained models & config
 # ----------------------------
