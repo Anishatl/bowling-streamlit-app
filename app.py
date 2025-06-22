@@ -3,24 +3,18 @@ import cv2
 import tempfile
 import numpy as np
 import pandas as pd
-import joblib
 from pose_utils import analyze_pose_video, analyze_pose
+from model_loader import load_all_models
 
-from model_loader import download_and_cache_model
-CLIP_MODEL_URL = "https://drive.google.com/uc?export=download&id=1j0Gk9rsp4p1F0V7JPQdaxBD7DqGnd5hZ"
-JOINT_MODEL_URL = "https://drive.google.com/uc?export=download&id=1cSvUNOhczi8JxbP2MAmRmCoZg6Ook0Pj"
+# Load all models once
+models = load_all_models()
+clip_model = models["clip_model"]
+joint_models = models["joint_models"]
+scaler = models["clip_scaler"]
+clip_label_encoder = models["clip_label_encoder"]
+joint_label_encoder = models["joint_label_encoder"]
 
-clip_model = download_and_cache_model(CLIP_MODEL_URL, "clip_level_rf_model.pkl")
-joint_models = download_and_cache_model(JOINT_MODEL_URL, "joint_risk_rf_models.pkl")
-
-
-# ----------------------------
-# Load trained models & config
-# ----------------------------
-clip_model = joblib.load("clip_level_model.pkl")
-scaler = joblib.load("scaler.pkl")
-label_encoder = joblib.load("label_encoder.pkl")
-
+# Advice map and angle thresholds for feedback
 ADVICE_MAP = {
     "elbow": "Try to reduce hyperextension during delivery.",
     "knee": "Avoid excessive bending or locking of the front knee.",
@@ -35,9 +29,6 @@ THRESHOLDS = {
     "shoulder_angle": (10, 90),
 }
 
-# ----------------------------
-# Streamlit UI
-# ----------------------------
 st.title("🏏 Bowling Action Analyzer")
 st.markdown("""
 Upload a video file to analyze the bowler's action frame by frame.
@@ -79,62 +70,82 @@ if uploaded_file is not None:
         st.write(f"Total frames in the video: {frame_count}")
         st.write(f"Frames being analyzed (every 5th frame): {len(frames)}")
 
-        # Run full video analysis
+        # Run full video analysis (pose angles per frame)
         if 'full_video_feedback' not in st.session_state:
             full_video_feedback = cached_video_analysis(tfile.name)
             st.session_state.full_video_feedback = full_video_feedback
-            full_video_analysis_container.write("### Full Video Analysis:")
-            full_video_analysis_container.write(full_video_feedback)
         else:
-            full_video_analysis_container.write("### Full Video Analysis:")
-            full_video_analysis_container.write(st.session_state.full_video_feedback)
+            full_video_feedback = st.session_state.full_video_feedback
 
-        # ---- CLIP-LEVEL PREDICTION + ADVICE ----
+        full_video_analysis_container.write("### Full Video Analysis (frame-level angles):")
+        full_video_analysis_container.write(full_video_feedback)
+
+        # ----------- CLIP-LEVEL PREDICTION -----------
         angle_features = ["elbow_angle", "spine_angle", "knee_angle", "shoulder_angle"]
-        full_video_feedback = st.session_state.full_video_feedback
-
         if isinstance(full_video_feedback, list) and len(full_video_feedback) > 0:
             df_clip = pd.DataFrame(full_video_feedback)
+
             if all(col in df_clip.columns for col in angle_features):
+                # Mean angles per clip
                 clip_avg = df_clip[angle_features].mean().values.reshape(1, -1)
                 clip_scaled = scaler.transform(clip_avg)
                 pred = clip_model.predict(clip_scaled)
-                pred_label = label_encoder.inverse_transform(pred)[0]
+                pred_label = clip_label_encoder.inverse_transform(pred)[0]
 
                 st.subheader("🩺 Clip-Level Injury Risk Prediction:")
                 st.markdown(f"**Predicted Risk Level: {pred_label}**")
 
-                if pred_label in ["Risky", "Severe"]:
-                    st.subheader("📌 Injury Advice:")
-                    for angle in angle_features:
-                        val = clip_avg[0][angle_features.index(angle)]
-                        low, high = THRESHOLDS[angle]
-                        if not (low <= val <= high):
-                            joint = angle.split("_")[0]
-                            st.markdown(f"- **{joint.capitalize()}**: {ADVICE_MAP[joint]}")
+                # Joint-level risk predictions & advice
+                st.subheader("🦵 Joint-Level Injury Risk Analysis:")
+                joint_risks = {}
+                advice_given = False
+                for joint in ["elbow", "spine", "knee", "shoulder"]:
+                    angle_val = clip_avg[0][angle_features.index(f"{joint}_angle")]
+                    # Joint model expects 2D input
+                    joint_model = joint_models.get(joint)
+                    if joint_model is not None:
+                        joint_pred_encoded = joint_model.predict(np.array([[angle_val]]))
+                        joint_pred_label = joint_label_encoder.inverse_transform(joint_pred_encoded)[0]
+                        joint_risks[joint] = (joint_pred_label, angle_val)
+                        # Show advice if risky or severe
+                        if joint_pred_label in ["Risky", "Severe"]:
+                            low, high = THRESHOLDS[f"{joint}_angle"]
+                            if not (low <= angle_val <= high):
+                                st.markdown(f"- **{joint.capitalize()}**: {ADVICE_MAP[joint]} (Angle: {angle_val:.1f}°)")
+                                advice_given = True
+                    else:
+                        st.warning(f"No joint model found for {joint}")
+
+                if not advice_given:
+                    st.markdown("All joints are within safe biomechanical ranges!")
+
             else:
                 st.warning("Clip-level model could not run due to missing angle data.")
         else:
             st.warning("Insufficient frame-level angle data to evaluate clip.")
 
     # --- Individual Frame Selection ---
-    frame_slider = st.slider("Select a frame", 0, len(frames) - 1, 0)
-    selected_frame = frames[frame_slider]
+    if len(frames) > 0:
+        frame_slider = st.slider("Select a frame", 0, len(frames) - 1, 0)
+        selected_frame = frames[frame_slider]
 
-    # Rotate frame
-    if st.button("Rotate Frame 90°"):
-        st.session_state.rotation_angle = (st.session_state.rotation_angle + 90) % 360
+        # Rotate frame
+        if st.button("Rotate Frame 90°"):
+            st.session_state.rotation_angle = (st.session_state.rotation_angle + 90) % 360
 
-    if st.session_state.rotation_angle == 90:
-        selected_frame = cv2.rotate(selected_frame, cv2.ROTATE_90_CLOCKWISE)
-    elif st.session_state.rotation_angle == 180:
-        selected_frame = cv2.rotate(selected_frame, cv2.ROTATE_180)
-    elif st.session_state.rotation_angle == 270:
-        selected_frame = cv2.rotate(selected_frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        if st.session_state.rotation_angle == 90:
+            selected_frame = cv2.rotate(selected_frame, cv2.ROTATE_90_CLOCKWISE)
+        elif st.session_state.rotation_angle == 180:
+            selected_frame = cv2.rotate(selected_frame, cv2.ROTATE_180)
+        elif st.session_state.rotation_angle == 270:
+            selected_frame = cv2.rotate(selected_frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
-    # Run pose analysis on selected frame
-    analyzed_frame, feedback, debug_text = analyze_pose(selected_frame, draw_angles=True)
+        # Run pose analysis on selected frame
+        analyzed_frame, feedback, debug_text = analyze_pose(selected_frame, draw_angles=True)
 
-    st.image(analyzed_frame, channels="BGR", use_container_width=True)
-    st.text_area("Pose Angles Debug Info", debug_text, height=100)
-    st.write("Feedback:", feedback)
+        st.image(analyzed_frame, channels="BGR", use_container_width=True)
+        st.text_area("Pose Angles Debug Info", debug_text, height=100)
+        st.write("Feedback:", feedback)
+    else:
+        st.info("No frames extracted from video to display.")
+
