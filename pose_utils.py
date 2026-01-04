@@ -1,8 +1,10 @@
 import cv2
 import mediapipe as mp
+from mediapipe.python.solutions import pose as mp_pose
+from mediapipe.python.solutions import drawing_utils as mp_drawing
 import numpy as np
 
-# === Function to calculate the angle between three points ===
+#Function to calculate the angle between three points
 def calculate_angle(a, b, c):
     a = np.array(a)
     b = np.array(b)
@@ -16,12 +18,12 @@ def calculate_angle(a, b, c):
 
     return np.degrees(angle)
 
-# === Initialize MediaPipe Pose Model ===
-mp_pose = mp.solutions.pose
+#Initialize MediaPipe Pose Model
+#mp_pose = mp.solutions.pose
 pose = mp_pose.Pose()
-mp_drawing = mp.solutions.drawing_utils
+#mp_drawing = mp.solutions.drawing_utils
 
-# === Analyze a single frame ===
+#Analyze a single frame
 def analyze_pose(frame, draw_angles=False):
     image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     results = pose.process(image_rgb)
@@ -59,7 +61,7 @@ def analyze_pose(frame, draw_angles=False):
     return frame, feedback, debug_text
 
 
-# === Analyze full video and return list of per-frame angles ===
+#Analyze full video and return list of per-frame angles
 def analyze_pose_video(video_path):
     cap = cv2.VideoCapture(video_path)
 
