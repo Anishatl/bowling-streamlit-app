@@ -1,10 +1,8 @@
 import cv2
 import mediapipe as mp
-from mediapipe.python.solutions import pose as mp_pose
-from mediapipe.python.solutions import drawing_utils as mp_drawing
 import numpy as np
 
-#Function to calculate the angle between three points
+# Function to calculate the angle between three points
 def calculate_angle(a, b, c):
     a = np.array(a)
     b = np.array(b)
@@ -18,10 +16,16 @@ def calculate_angle(a, b, c):
 
     return np.degrees(angle)
 
-#Initialize MediaPipe Pose Model
-#mp_pose = mp.solutions.pose
+# Try the standard 'mp.solutions' API first, fall back if needed
+try:
+    mp_pose = mp.solutions.pose
+    mp_drawing = mp.solutions.drawing_utils
+except AttributeError:
+    from mediapipe.python.solutions import pose as mp_pose
+    from mediapipe.python.solutions import drawing_utils as mp_drawing
+
+# Initialize MediaPipe Pose Model
 pose = mp_pose.Pose()
-#mp_drawing = mp.solutions.drawing_utils
 
 #Analyze a single frame
 def analyze_pose(frame, draw_angles=False):
