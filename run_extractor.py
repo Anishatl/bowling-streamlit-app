@@ -1,3 +1,4 @@
+#Test file to test extracting poses imported to a CSV, using video file of Mark Wood bowling
 from pose_angle_extractor import extract_pose_angles_to_csv
 
 if __name__ == "__main__":
