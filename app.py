@@ -6,7 +6,7 @@ import pandas as pd
 from pose_utils import analyze_pose_video, analyze_pose
 from model_loader import load_all_models
 
-# Load all models once
+# Load all models using for the analysis and advice once
 models = load_all_models()
 clip_model = models["clip_model"]
 joint_models = models["joint_models"]
@@ -14,7 +14,7 @@ scaler = models["clip_scaler"]
 clip_label_encoder = models["clip_label_encoder"]
 joint_label_encoder = models["joint_label_encoder"]
 
-# Advice map and angle thresholds for feedback
+# Advice map and angle thresholds for feedback (based on angles, certain advice should be given according to multiple Level 2 & 3 coaches I've trained with)
 ADVICE_MAP = {
     "elbow": "Try to reduce hyperextension during delivery.",
     "knee": "Avoid excessive bending or locking of the front knee.",
@@ -29,7 +29,7 @@ THRESHOLDS = {
     "shoulder_angle": (10, 90),
 }
 
-st.title("🏏 Bowling Action Analyzer")
+st.title("Cricket Bowling Action Analyzer")
 st.markdown("""
 Upload a video file to analyze the bowler's action frame by frame.
 
@@ -41,7 +41,7 @@ uploaded_file = st.file_uploader("Upload a video", type=["mp4", "mov", "avi"])
 # Temporary container for full video analysis output
 full_video_analysis_container = st.empty()
 
-# Cache the analysis result to avoid recalculating
+# Cache the analysis result to avoid recalculating***
 @st.cache_resource
 def cached_video_analysis(file_path):
     return analyze_pose_video(file_path)
@@ -70,7 +70,7 @@ if uploaded_file is not None:
         st.write(f"Total frames in the video: {frame_count}")
         st.write(f"Frames being analyzed (every 5th frame): {len(frames)}")
 
-        # Run full video analysis (pose angles per frame)
+        #Run full video analysis (pose angles per frame)
         if 'full_video_feedback' not in st.session_state:
             full_video_feedback = cached_video_analysis(tfile.name)
             st.session_state.full_video_feedback = full_video_feedback
@@ -80,7 +80,7 @@ if uploaded_file is not None:
         full_video_analysis_container.write("### Full Video Analysis (frame-level angles):")
         full_video_analysis_container.write(full_video_feedback)
 
-        # ----------- CLIP-LEVEL PREDICTION -----------
+        #CLIP-LEVEL PREDICTION
         angle_features = ["elbow_angle", "spine_angle", "knee_angle", "shoulder_angle"]
         if isinstance(full_video_feedback, list) and len(full_video_feedback) > 0:
             df_clip = pd.DataFrame(full_video_feedback)
@@ -96,7 +96,7 @@ if uploaded_file is not None:
                 st.markdown(f"**Predicted Risk Level: {pred_label}**")
 
                 # Joint-level risk predictions & advice
-                st.subheader("🦵 Joint-Level Injury Risk Analysis:")
+                st.subheader("Joint-Level Injury Risk Analysis:")
                 joint_risks = {}
                 advice_given = False
                 for joint in ["elbow", "spine", "knee", "shoulder"]:
@@ -124,7 +124,7 @@ if uploaded_file is not None:
         else:
             st.warning("Insufficient frame-level angle data to evaluate clip.")
 
-    # --- Individual Frame Selection ---
+    #Individual Frame Selection
     if len(frames) > 0:
         frame_slider = st.slider("Select a frame", 0, len(frames) - 1, 0)
         selected_frame = frames[frame_slider]
@@ -148,4 +148,5 @@ if uploaded_file is not None:
         st.write("Feedback:", feedback)
     else:
         st.info("No frames extracted from video to display.")
+
 
