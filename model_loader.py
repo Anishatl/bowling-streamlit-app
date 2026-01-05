@@ -2,6 +2,7 @@ import os
 import joblib
 import gdown  # pip install gdown
 
+# Use this to actually get ML models, currently stored on google drive, so those IDs should work
 # Paths for local repo files
 CLIP_SCALER_PATH = "clip_scaler.pkl"
 CLIP_LABEL_ENCODER_PATH = "clip_label_encoder.pkl"
@@ -11,7 +12,7 @@ JOINT_LABEL_ENCODER_PATH = "label_encoder.pkl"
 CLIP_LEVEL_RF_MODEL_GDRIVE_ID = "1j0Gk9rsp4p1F0V7JPQdaxBD7DqGnd5hZ"
 JOINT_RISK_RF_MODELS_GDRIVE_ID = "1cSvUNOhczi8JxbP2MAmRmCoZg6Ook0Pj"
 
-# Local cache folder for downloaded models
+# Local cache folder for downloaded models***
 CACHE_DIR = "downloaded_models"
 os.makedirs(CACHE_DIR, exist_ok=True)
 
