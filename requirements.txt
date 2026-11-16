@@ -2,14 +2,7 @@ streamlit
 opencv-python-headless
 mediapipe==0.10.9
 numpy
-tqdm
-numpy
 pandas
 scikit-learn
-matplotlib
-seaborn
 joblib
-jupyterlab
-ipython
 gdown
-

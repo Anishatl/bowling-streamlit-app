@@ -1,0 +1,13 @@
+# Models downloaded from Google Drive on first run
+downloaded_models/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Local videos and exported angle data
+*.mp4
+*.mov
+*.avi
+output_angles.csv
